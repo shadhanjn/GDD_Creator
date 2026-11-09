@@ -224,7 +224,8 @@ input[type="date"].inp { text-align: start; }
 @media (min-width: 760px) { .cell.w2 { grid-column: span 2; } }
 .sw { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
 .cp { width: 52px; height: 44px; padding: 3px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--soft); cursor: pointer; }
-.hex { font: 500 13px var(--font-mono); color: var(--muted); min-width: 66px; }
+.sw .hex { font: 500 13px var(--font-mono); color: var(--muted); width: 92px; text-align: start; }
+.sw .hex.bad { border-color: #d33; }
 
 .cta { margin-top: 16px; background: var(--brand); color: var(--brand-ink); border-radius: var(--radius); padding: 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .cta p { margin: 0; flex: 1 1 240px; font-weight: 500; }
@@ -3553,7 +3554,7 @@ function controlHTML(f, v, busy) {
     }
     case 'colors': {
       const arr = Array.isArray(v) ? v : [];
-      return `<div class="pal" role="group" aria-labelledby="l-${id}">${arr.map((c, i) => `<div class="sw"><input type="color" class="cp" data-f="${id}" data-i="${i}" data-c="0" value="${safeHex(c[0])}" aria-label="${esc(T('pickColor'))}"><input class="inp" data-f="${id}" data-i="${i}" data-c="1" value="${esc(c[1] || '')}" placeholder="${esc(T('colorName'))}" dir="auto"><code class="hex" dir="ltr">${safeHex(c[0]).toUpperCase()}</code><button type="button" class="ibtn" data-act="row-del" data-f="${id}" data-i="${i}" aria-label="${esc(T('remove'))}">${IC.x}</button></div>`).join('')}${arr.length < (f.max || 8) ? `<button type="button" class="btn sm ghost add" data-act="col-add" data-f="${id}">${IC.plus}${esc(T('addColor'))}</button>` : ''}</div>`;
+      return `<div class="pal" role="group" aria-labelledby="l-${id}">${arr.map((c, i) => `<div class="sw"><input type="color" class="cp" data-f="${id}" data-i="${i}" data-c="0" value="${safeHex(c[0])}" aria-label="${esc(T('pickColor'))}"><input class="inp" data-f="${id}" data-i="${i}" data-c="1" value="${esc(c[1] || '')}" placeholder="${esc(T('colorName'))}" dir="auto"><input class="inp hex" data-f="${id}" data-i="${i}" data-c="hex" value="${safeHex(c[0]).toUpperCase()}" maxlength="7" spellcheck="false" autocapitalize="characters" dir="ltr" inputmode="text" aria-label="HEX" placeholder="#RRGGBB"><button type="button" class="ibtn" data-act="row-del" data-f="${id}" data-i="${i}" aria-label="${esc(T('remove'))}">${IC.x}</button></div>`).join('')}${arr.length < (f.max || 8) ? `<button type="button" class="btn sm ghost add" data-act="col-add" data-f="${id}">${IC.plus}${esc(T('addColor'))}</button>` : ''}</div>`;
     }
     case 'images': {
       const items = Array.isArray(v) ? v : [];
@@ -4166,6 +4167,15 @@ function onInput(e) {
   if (!fid || !FIELD[fid] || el.dataset.act) return;
   const f = FIELD[fid];
   const i = +el.dataset.i;
+  if (el.dataset.c === 'hex' && f.k === 'colors') {
+    let h = el.value.trim().replace(/^#?/, '#');
+    if (/^#[0-9a-fA-F]{3}$/.test(h)) h = '#' + h.slice(1).split('').map((x) => x + x).join('');
+    const ok = HEX.test(h);
+    el.classList.toggle('bad', !ok);
+    const a = S.d[fid];
+    if (ok && a && a[i]) { a[i][0] = h.toLowerCase(); const cp = el.parentElement.querySelector('input[type=color]'); if (cp) cp.value = h.toLowerCase(); delete S.auto[fid]; touch(); }
+    return;
+  }
   const c = +el.dataset.c;
   const v = el.value;
   if (f.k === 'list') { const a = (S.d[fid] = S.d[fid] || []); a[i] = v; }
@@ -4175,7 +4185,7 @@ function onInput(e) {
     const a = S.d[fid];
     if (!a || !a[i]) return;
     a[i][c] = v;
-    if (c === 0) { const hex = el.parentElement.querySelector('.hex'); if (hex) hex.textContent = v.toUpperCase(); }
+    if (c === 0) { const hex = el.parentElement.querySelector('.hex'); if (hex) { hex.value = v.toUpperCase(); hex.classList.remove('bad'); } }
   } else if (['text', 'area', 'date', 'sel'].includes(f.k)) S.d[fid] = v;
   else return;
   if (el.tagName === 'TEXTAREA') autosize(el);
